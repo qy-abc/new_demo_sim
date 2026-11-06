@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Closer – N(Y)P</title>
+<meta name="description" content="Closer: a month-end commission close agent on IBM watsonx Orchestrate, by team N(Y)P.">
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #161b22; --muted: #57606a;
+    --line: #d8dee4; --accent: #0f62fe; --accent-soft: #e8efff; --ok: #1a7f37; --no: #cf222e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1117; --panel: #161b22; --text: #e6edf3; --muted: #9da7b3;
+      --line: #30363d; --accent: #78a9ff; --accent-soft: #1c2a44; --ok: #3fb950; --no: #f85149;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  header { padding: 24px 16px 8px; max-width: 1280px; margin: 0 auto; }
+  h1 { margin: 0; font-size: 26px; }
+  .tag { color: var(--muted); margin: 4px 0 0; }
+  main { max-width: 1280px; margin: 0 auto; padding: 16px; display: grid; gap: 16px;
+    grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 980px) { main { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); align-items: start; } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  h2 { font-size: 17px; margin: 0 0 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  code { background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+  ol { padding-left: 20px; margin: 0; }
+  ol li { margin-bottom: 12px; }
+  .say { display: flex; gap: 8px; align-items: flex-start; margin: 4px 0 2px; }
+  .say q { flex: 1; quotes: none; background: var(--accent-soft); border-radius: 6px; padding: 6px 8px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; overflow-wrap: anywhere; }
+  button.copy { border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 6px; padding: 5px 9px; cursor: pointer; font-size: 13px; }
+  button.copy:hover { border-color: var(--accent); }
+  .expect { color: var(--muted); font-size: 13px; }
+  .no { color: var(--no); font-weight: 600; }
+  .ok { color: var(--ok); font-weight: 600; }
+  #chat-section { padding: 0; overflow: hidden; }
+  #chat-container { height: 78vh; min-height: 560px; }
+  @media (min-width: 980px) { #chat-section { position: sticky; top: 16px; } }
+  .note { color: var(--muted); font-size: 13px; margin: 10px 0 0; }
+  footer { max-width: 1280px; margin: 0 auto; padding: 8px 16px 32px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Closer</h1>
+  <p class="tag">Month-end commission close for Lim &amp; Sons Living, a Singapore furniture showroom. Built by team N(Y)P on IBM watsonx Orchestrate.</p>
+</header>
+
+<main>
+  <div>
+    <section>
+      <h2>How to try it</h2>
+      <p>The chat on this page is the live agent. Every person below is a role you can play by saying who you are. Copy each line into the chat in order. The data is September 2026 sample data, and no real money moves.</p>
+      <ol>
+        <li>
+          <div class="say"><q>Run the month-end close for 2026-09.</q><button class="copy">Copy</button></div>
+          <div class="expect">A form lists 8 bank credits Closer could not match by itself. Tick all 8 and press <b>Confirm ticked matches</b>. Closer then shows each salesperson's commission and the number of held orders.</div>
+        </li>
+        <li>
+          <div class="say"><q>I'm Ravi (S04). I helped close order 1043, I want it split 50/50 with Aisyah.</q><button class="copy">Copy</button></div>
+          <div class="expect">Closer opens a dispute. Order 1043 is held, so its commission is paid to nobody until a manager rules.</div>
+        </li>
+        <li>
+          <div class="say"><q>I'm Ravi, S04. I rule 1043 is 50/50.</q><button class="copy">Copy</button></div>
+          <div class="expect"><span class="no">Refused.</span> A salesperson cannot rule on their own dispute.</div>
+        </li>
+        <li>
+          <div class="say"><q>I'm Jason, S02, sales manager. Ruling on 1043: shared close, split 50/50 between S04 and S05.</q><button class="copy">Copy</button></div>
+          <div class="expect"><span class="ok">Accepted.</span> Ravi and Aisyah's totals update.</div>
+        </li>
+        <li>
+          <div class="say"><q>Prepare the payout.</q><button class="copy">Copy</button></div>
+          <div class="expect">If Closer asks for a yes, answer <code>yes</code>. You get a draft: each person's pay, a clawback and the total. Nothing is paid.</div>
+        </li>
+        <li>
+          <div class="say"><q>I'm Jason, S02. Approve the payout.</q><button class="copy">Copy</button></div>
+          <div class="expect"><span class="no">Refused.</span> Only the owner can approve pay.</div>
+        </li>
+        <li>
+          <div class="say"><q>I'm Mr Lim, S01. Approve.</q><button class="copy">Copy</button></div>
+          <div class="expect"><span class="ok">Approved</span> and logged with who and when. Expected total: S$8,072.33.</div>
+        </li>
+      </ol>
+      <p class="note">On this public page nobody is signed in, so Closer runs in demo mode and accepts the staff ID you type for the approval. In the shop, approval is tied to the owner's own login.</p>
+    </section>
+
+    <section style="margin-top:16px">
+      <h2>The cast</h2>
+      <table>
+        <thead><tr><th>ID</th><th>Name</th><th>Role</th><th>What they can do</th></tr></thead>
+        <tbody>
+          <tr><td>S01</td><td>Mr Lim</td><td>Owner</td><td>Approve or reject the payout</td></tr>
+          <tr><td>S02</td><td>Jason</td><td>Sales manager</td><td>Rule on commission disputes</td></tr>
+          <tr><td>S03</td><td>Mei</td><td>Admin</td><td>Confirm unclear bank matches</td></tr>
+          <tr><td>S04–S09</td><td>Ravi, Aisyah, Wei Ming, Priya, Darren, Siti</td><td>Salespeople</td><td>Earn commission, raise disputes</td></tr>
+          <tr><td>S10, S11</td><td>Ah Seng, Kumar</td><td>Delivery crew</td><td>Not on commission</td></tr>
+        </tbody>
+      </table>
+      <p class="note">You can also ask Closer to explain one person's statement, for example Wei Ming's.</p>
+    </section>
+  </div>
+
+  <section id="chat-section" aria-label="Closer chat">
+    <div id="chat-container"></div>
+  </section>
+</main>
+
+<footer>Team N(Y)P · AI-GNITION 2026 · Nexius Labs problem statement 2, "One Less Thing". Sample data only.</footer>
+
+<script>
+  document.querySelectorAll("button.copy").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var text = btn.previousElementSibling.textContent;
+      var done = function () { btn.textContent = "Copied"; setTimeout(function () { btn.textContent = "Copy"; }, 1200); };
+      if (navigator.clipboard) { navigator.clipboard.writeText(text).then(done, function () {}); }
+    });
+  });
+
+  // From `orchestrate channels webchat embed --agent-name nyp_closer --env live`,
+  // with the layout switched to "custom" so the chat renders inside the page.
+  window.wxOConfiguration = {
+    orchestrationID: "00b44f81c3ae411487c17d529f10457d_e1fa4625-3404-4a78-b267-c6474f83803e",
+    hostURL: "https://ca-tor.watson-orchestrate.cloud.ibm.com",
+    crn: "crn:v1:bluemix:public:watsonx-orchestrate:ca-tor:a/00b44f81c3ae411487c17d529f10457d:e1fa4625-3404-4a78-b267-c6474f83803e::",
+    deploymentPlatform: "ibmcloud",
+    chatOptions: {
+      agentId: "9aa0e418-3ad4-4bbe-9e9f-81948f379081",
+      agentEnvironmentId: "beb7f16f-294e-4152-a9eb-0da3e2331414"
+    },
+    layout: {
+      form: "custom",
+      showOrchestrateHeader: true,
+      customElement: document.getElementById("chat-container")
+    }
+  };
+  setTimeout(function () {
+    var script = document.createElement("script");
+    script.src = window.wxOConfiguration.hostURL + "/wxochat/wxoLoader.js?embed=true";
+    script.addEventListener("load", function () { wxoLoader.init(); });
+    document.head.appendChild(script);
+  }, 0);
+</script>
+</body>
+</html>
