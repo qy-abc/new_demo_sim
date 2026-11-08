@@ -13,10 +13,12 @@
   --ink:#1b2830; --muted:#4a5660; --navy:#2e4d63; --slate:#4f7389;
   --gold:#b07d2a; --sage:#6f9a80; --amber:#b8741a; --amberbg:#fbe8c8;
   --red:#a63a28; --redbg:#f7ddd5; --green:#1f6b47; --greenbg:#dcefe3;
-  --chat-w:clamp(360px, 27.5rem, 460px);
+  --chat-w:clamp(360px, 23vw, 460px);  /* the drag handle on the chat's edge overrides this */
 }
 *{box-sizing:border-box}
-html{font-size:clamp(10px, min(100vw / 120, 100vh / 67.5), 22px)}
+/* The dashboard was laid out 92.5rem wide (1480px at 16px), so the root size follows the space
+   the chat leaves; widening the chat scales the dashboard down instead of overflowing it. */
+html{font-size:clamp(10px, min((100vw - var(--chat-w)) / 92.5, 100vh / 67.5), 22px)}
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--ink);overflow:hidden;
   font:500 1.25rem/1.35 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
@@ -29,6 +31,14 @@ code{font-family:ui-monospace,Consolas,monospace;font-size:.9em;background:rgba(
 .dash{min-width:0;height:100vh;display:grid;grid-template-rows:auto minmax(0,1fr) 16rem;gap:.9rem;padding:.9rem;position:relative}
 .chat{height:100vh;border-left:2px solid var(--edge);background:#fff;position:relative}
 #chat-container{height:100%}
+.splitter{position:absolute;left:-9px;top:0;bottom:0;width:16px;z-index:20;cursor:col-resize;display:grid;place-items:center;touch-action:none;outline:none}
+.splitter::before{content:"";position:absolute;left:7px;top:0;bottom:0;width:2px;background:transparent;transition:background .15s}
+.splitter:hover::before,.splitter:focus-visible::before,body.dragging .splitter::before{background:var(--navy)}
+.splitter span{width:10px;height:44px;border-radius:6px;background:#fff;border:2px solid var(--edge);display:grid;place-items:center;gap:3px;padding:6px 0;position:relative}
+.splitter span i{width:3px;height:3px;border-radius:50%;background:var(--muted);display:block}
+.splitter:hover span,body.dragging .splitter span{border-color:var(--navy)}
+body.dragging{cursor:col-resize;user-select:none}
+body.dragging .chat::after{content:"";position:absolute;inset:0;z-index:15}  /* keep the chat's frame from swallowing the drag */
 .chatfail{position:absolute;inset:1rem;display:none;place-items:center;text-align:center;background:var(--card);border:2px dashed var(--edge);border-radius:1rem;padding:1.5rem;font-size:1.1rem}
 .chatfail.on{display:grid}
 .chatfail button{margin-top:.8rem;border:2px solid var(--navy);background:var(--navy);color:#fff;border-radius:.6rem;padding:.4rem 1rem;cursor:pointer}
@@ -240,6 +250,7 @@ kbd{font:inherit;font-size:.85rem;background:#fff;border:1px solid var(--edge);b
 </main>
 
 <aside class="chat" aria-label="Closer chat">
+  <div class="splitter" id="splitter" role="separator" aria-orientation="vertical" aria-label="Chat width: drag, or use the arrow keys; double-click to reset" title="Drag to resize the chat · double-click to reset" tabindex="0"><span><i></i><i></i><i></i></span></div>
   <div id="chat-container"></div>
   <div class="chatfail" id="chatfail"><div><b>The chat did not load.</b><br>Check the connection, then reload. The dashboard can still step through the demo: press <kbd>F2</kbd>.<br><button onclick="location.reload()">Reload</button></div></div>
 </aside>
@@ -868,6 +879,39 @@ document.addEventListener("click", e => {
     renderStage(); renderPeople([]);
   }
 });
+
+/* ============ chat width ============
+   Drag the handle on the chat's left edge, or focus it and use the arrow keys. Double-click resets.
+   The width is remembered in this browser only. */
+(function chatResizer(){
+  const KEY = "closer.chatWidth", MIN = 300, root = document.documentElement, handle = $("splitter");
+  const maxW = () => Math.max(MIN, Math.min(innerWidth - 925, innerWidth * 0.6));  // dashboard keeps >= 92.5rem at 10px
+  const current = () => $("chat-container").parentElement.getBoundingClientRect().width;
+  let saved = null;
+  function apply(px){
+    if(px == null){ root.style.removeProperty("--chat-w"); }
+    else { px = Math.round(Math.min(maxW(), Math.max(MIN, px))); root.style.setProperty("--chat-w", px + "px"); }
+    handle.setAttribute("aria-valuenow", String(Math.round(current())));
+    return px;
+  }
+  const store = v => { try{ v == null ? localStorage.removeItem(KEY) : localStorage.setItem(KEY, String(v)); }catch(_){} };
+  try{ const v = +localStorage.getItem(KEY); if(v) saved = apply(v); }catch(_){}
+  handle.setAttribute("aria-valuemin", String(MIN));
+  handle.addEventListener("pointerdown", e => {
+    e.preventDefault(); handle.setPointerCapture(e.pointerId); document.body.classList.add("dragging");
+  });
+  handle.addEventListener("pointermove", e => { if(handle.hasPointerCapture(e.pointerId)) saved = apply(innerWidth - e.clientX); });
+  const end = e => { if(!document.body.classList.contains("dragging")) return; document.body.classList.remove("dragging"); store(saved); };
+  handle.addEventListener("pointerup", end); handle.addEventListener("pointercancel", end); handle.addEventListener("lostpointercapture", end);
+  handle.addEventListener("dblclick", () => { saved = apply(null); store(null); });
+  handle.addEventListener("keydown", e => {
+    const step = e.shiftKey ? 80 : 20;
+    if(e.key === "ArrowLeft"){ saved = apply(current() + step); store(saved); e.preventDefault(); }
+    else if(e.key === "ArrowRight"){ saved = apply(current() - step); store(saved); e.preventDefault(); }
+    else if(e.key === "Home" || e.key === "Enter"){ saved = apply(null); store(null); e.preventDefault(); }
+  });
+  addEventListener("resize", () => { if(saved != null) saved = apply(saved); });
+})();
 
 /* ============ start ============ */
 fetch("engine/demo_states.json", {cache: "no-cache"}).then(r => r.json()).then(d => {
