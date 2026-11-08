@@ -3,149 +3,927 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Closer – N(Y)P</title>
-<meta name="description" content="Closer: a month-end commission close agent on IBM watsonx Orchestrate, by team N(Y)P.">
+<title>Closer Live Close</title>
+<meta name="description" content="Closer: a month-end commission close agent on IBM watsonx Orchestrate, by team N(Y)P. The dashboard follows the live agent.">
 <style>
-  :root {
-    --bg: #f6f7f9; --panel: #ffffff; --text: #161b22; --muted: #57606a;
-    --line: #d8dee4; --accent: #0f62fe; --accent-soft: #e8efff; --ok: #1a7f37; --no: #cf222e;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #0d1117; --panel: #161b22; --text: #e6edf3; --muted: #9da7b3;
-      --line: #30363d; --accent: #78a9ff; --accent-soft: #1c2a44; --ok: #3fb950; --no: #f85149;
-    }
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text);
-    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-  header { padding: 24px 16px 8px; max-width: 1280px; margin: 0 auto; }
-  h1 { margin: 0; font-size: 26px; }
-  .tag { color: var(--muted); margin: 4px 0 0; }
-  main { max-width: 1280px; margin: 0 auto; padding: 16px; display: grid; gap: 16px;
-    grid-template-columns: minmax(0, 1fr); }
-  @media (min-width: 980px) { main { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); align-items: start; } }
-  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
-  h2 { font-size: 17px; margin: 0 0 10px; }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { color: var(--muted); font-weight: 600; }
-  code { background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
-  ol { padding-left: 20px; margin: 0; }
-  ol li { margin-bottom: 12px; }
-  .say { display: flex; gap: 8px; align-items: flex-start; margin: 4px 0 2px; }
-  .say q { flex: 1; quotes: none; background: var(--accent-soft); border-radius: 6px; padding: 6px 8px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; overflow-wrap: anywhere; }
-  button.copy { border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 6px; padding: 5px 9px; cursor: pointer; font-size: 13px; }
-  button.copy:hover { border-color: var(--accent); }
-  .expect { color: var(--muted); font-size: 13px; }
-  .no { color: var(--no); font-weight: 600; }
-  .ok { color: var(--ok); font-weight: 600; }
-  #chat-section { padding: 0; overflow: hidden; }
-  #chat-container { height: 78vh; min-height: 560px; }
-  @media (min-width: 980px) { #chat-section { position: sticky; top: 16px; } }
-  .note { color: var(--muted); font-size: 13px; margin: 10px 0 0; }
-  footer { max-width: 1280px; margin: 0 auto; padding: 8px 16px 32px; color: var(--muted); font-size: 13px; }
+/* One screen, no scroll. Every size is in rem, and the root size follows the window,
+   so 1920x1080 gives 16px and a smaller projector gets the same layout scaled down. */
+:root{
+  --bg:#e8d8bc; --card:#fbf6ec; --edge:#b9a98c; --line:#d8c9ad;
+  --ink:#1b2830; --muted:#4a5660; --navy:#2e4d63; --slate:#4f7389;
+  --gold:#b07d2a; --sage:#6f9a80; --amber:#b8741a; --amberbg:#fbe8c8;
+  --red:#a63a28; --redbg:#f7ddd5; --green:#1f6b47; --greenbg:#dcefe3;
+  --chat-w:clamp(360px, 27.5rem, 460px);
+}
+*{box-sizing:border-box}
+html{font-size:clamp(10px, min(100vw / 120, 100vh / 67.5), 22px)}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);overflow:hidden;
+  font:500 1.25rem/1.35 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit}
+.num,td,.money{font-variant-numeric:tabular-nums}
+code{font-family:ui-monospace,Consolas,monospace;font-size:.9em;background:rgba(46,77,99,.1);color:var(--navy);padding:.05em .3em;border-radius:.3rem}
+
+.app{height:100vh;display:grid;grid-template-columns:minmax(0,1fr) var(--chat-w)}
+.dash{min-width:0;height:100vh;display:grid;grid-template-rows:auto minmax(0,1fr) 16rem;gap:.9rem;padding:.9rem;position:relative}
+.chat{height:100vh;border-left:2px solid var(--edge);background:#fff;position:relative}
+#chat-container{height:100%}
+.chatfail{position:absolute;inset:1rem;display:none;place-items:center;text-align:center;background:var(--card);border:2px dashed var(--edge);border-radius:1rem;padding:1.5rem;font-size:1.1rem}
+.chatfail.on{display:grid}
+.chatfail button{margin-top:.8rem;border:2px solid var(--navy);background:var(--navy);color:#fff;border-radius:.6rem;padding:.4rem 1rem;cursor:pointer}
+
+.card{background:var(--card);border:2px solid var(--edge);border-radius:1.1rem;min-width:0;min-height:0;overflow:hidden;position:relative}
+.ch{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.75rem 1rem .4rem}
+.ch h2{margin:0;font-size:1.25rem;font-weight:700}
+.ch .tool{font:600 .9rem ui-monospace,Consolas,monospace;color:var(--navy);background:rgba(46,77,99,.1);padding:.15rem .5rem;border-radius:99rem;white-space:nowrap}
+.muted{color:var(--muted)}
+.neg{color:var(--red)} .pos{color:var(--green)}
+.tag{display:inline-flex;align-items:center;gap:.3rem;font-size:.95rem;font-weight:700;padding:.12rem .55rem;border-radius:99rem;white-space:nowrap;border:2px solid currentColor}
+.tag.ok{color:var(--green);background:var(--greenbg)} .tag.bad{color:var(--red);background:var(--redbg)}
+.tag.warn{color:#8a5212;background:var(--amberbg)} .tag.info{color:var(--navy);background:#e2ebf1}
+
+/* rail */
+.rail{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:1.1rem;align-items:center;padding:.7rem 1rem;border-radius:1.1rem;position:relative;overflow:hidden;background:var(--card);border:2px solid var(--edge)}
+.rail .scene{position:absolute;inset:0;z-index:0;opacity:.55;pointer-events:none}
+.rail .scene svg{width:100%;height:100%}
+.rail>*:not(.scene){position:relative;z-index:1}
+.brand{display:flex;align-items:center;gap:.6rem}
+.brand svg{width:2.6rem;height:2.6rem}
+.brand b{display:block;font-size:1.45rem;line-height:1.1}
+.brand span{font-size:1rem;color:var(--muted)}
+.stepper{list-style:none;display:flex;margin:0;padding:0}
+.stepper li{flex:1 1 0;display:flex;flex-direction:column;align-items:center;position:relative;text-align:center;font-size:1rem;font-weight:600;color:var(--muted);min-width:0}
+.stepper li::before{content:"";position:absolute;top:1.05rem;left:calc(-50% + 1.3rem);right:calc(50% + 1.3rem);height:.22rem;background:var(--line);border-radius:1rem}
+.stepper li:first-child::before{display:none}
+.stepper li.done::before,.stepper li.active::before{background:var(--navy)}
+.dot{width:2.2rem;height:2.2rem;border-radius:50%;display:grid;place-items:center;border:.2rem solid var(--edge);background:#fff;font-weight:700;margin-bottom:.25rem;transition:all .35s}
+.dot svg{width:1.1rem;height:1.1rem}
+.done .dot{background:var(--navy);border-color:var(--navy);color:#fff}
+.active .dot{border-color:var(--amber);color:var(--amber);box-shadow:0 0 0 .3rem rgba(184,116,26,.22)}
+.stepper li.active,.stepper li.done{color:var(--ink)}
+.stepper li span.l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.kpis{display:flex;gap:.7rem;align-items:stretch}
+.kpi{background:#fff;border:2px solid var(--edge);border-radius:.9rem;padding:.35rem .8rem;min-width:9.5rem}
+.kpi small{display:block;font-size:.95rem;color:var(--muted);font-weight:600}
+.kpi b{display:block;font-size:2.1rem;font-weight:700;line-height:1.1;letter-spacing:-.01em}
+.pill{display:inline-flex;align-items:center;gap:.4rem;padding:.25rem .8rem;border-radius:99rem;font-size:1.05rem;font-weight:700;border:2px solid currentColor;white-space:nowrap}
+.pill i{width:.6rem;height:.6rem;border-radius:50%;background:currentColor}
+.pill.none{color:#55606a;background:#eceae5} .pill.draft{color:#8a5212;background:var(--amberbg)}
+.pill.approved{color:var(--green);background:var(--greenbg)} .pill.rejected{color:var(--red);background:var(--redbg)}
+.kstack{display:flex;flex-direction:column;justify-content:center;gap:.35rem}
+.sync{font-size:.9rem;font-weight:600;color:var(--muted);white-space:nowrap}
+.sync.warn{color:#8a5212} .sync.bad{color:var(--red)} .sync.ok{color:var(--green)}
+
+/* middle */
+.mid{display:grid;grid-template-columns:minmax(0,1fr) 27rem;gap:.9rem;min-height:0}
+.stage{display:flex;flex-direction:column}
+.stage .body{flex:1;min-height:0;padding:.2rem 1rem 1rem;display:flex;flex-direction:column;gap:.7rem}
+.ribbon{margin:0 1rem .2rem;padding:.45rem .8rem;border-radius:.7rem;background:var(--amberbg);border:2px solid var(--amber);color:#6e420f;font-weight:700;font-size:1.15rem;display:none}
+.ribbon.on{display:block;animation:fadein .3s ease}
+.view{animation:fadein .3s ease}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+
+.tbl{width:100%;border-collapse:collapse;font-size:1.1rem}
+.tbl th{font-weight:600;color:var(--muted);text-align:left;padding:.3rem .5rem;border-bottom:2px solid var(--edge);white-space:nowrap;font-size:1rem}
+.tbl td{padding:.32rem .5rem;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl tfoot td{font-weight:700;border-top:2px solid var(--edge);border-bottom:0}
+.r{text-align:right} .nw{white-space:nowrap}
+.tick{display:inline-grid;place-items:center;width:1.5rem;height:1.5rem;border-radius:.35rem;border:.15rem solid var(--edge);background:#fff;color:#fff}
+.tick.on{background:var(--green);border-color:var(--green)}
+.tick.off{border-color:var(--red);background:var(--redbg)}
+.tick svg{width:1rem;height:1rem}
+tr.unc td{background:rgba(166,58,40,.06)}
+.banner{display:flex;gap:.6rem;align-items:center;padding:.5rem .8rem;border-radius:.8rem;font-size:1.1rem;font-weight:600;border:2px solid}
+.banner svg{width:1.4rem;height:1.4rem;flex:none}
+.banner.bad{background:var(--redbg);color:#7e2a1c;border-color:#d99a8b}
+.banner.good{background:var(--greenbg);color:#174f35;border-color:#9bc9ad}
+.banner.amber{background:var(--amberbg);color:#6e420f;border-color:#dcae6b}
+.row{display:flex;gap:.7rem}
+.stat{flex:1;background:#fff;border:2px solid var(--line);border-radius:.8rem;padding:.45rem .7rem;min-width:0}
+.stat b{display:block;font-size:1.9rem;line-height:1.1}
+.stat span{font-size:1rem;color:var(--muted);font-weight:600}
+.idle{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:1rem;min-height:0}
+.idle h3{margin:.2rem 0 .5rem;font-size:1.3rem}
+.idle ol{margin:0;padding-left:1.5rem;font-size:1.1rem}
+.idle ol li{margin-bottom:.45rem}
+.say{display:flex;gap:.4rem;align-items:center}
+.say q{quotes:none;flex:1;background:#fff;border:1px solid var(--line);border-radius:.4rem;padding:.15rem .45rem;font:1rem ui-monospace,Consolas,monospace}
+.say button{border:2px solid var(--edge);background:#fff;border-radius:.4rem;padding:.05rem .45rem;cursor:pointer;font-size:.9rem}
+.cast td{padding:.2rem .4rem;font-size:1.05rem}
+.big{font-size:2.6rem;font-weight:700;line-height:1}
+
+/* timeline */
+.tl{list-style:none;margin:0;padding:0}
+.tl li{position:relative;padding:0 0 .55rem 2.1rem;font-size:1.1rem;line-height:1.3}
+.tl li::before{content:"";position:absolute;left:.7rem;top:1.5rem;bottom:0;width:.15rem;background:var(--line)}
+.tl li:last-child::before{display:none}
+.tl .td{position:absolute;left:0;top:.05rem;width:1.5rem;height:1.5rem;border-radius:50%;display:grid;place-items:center;color:#fff}
+.tl .td svg{width:.9rem;height:.9rem}
+.tl .tm{font-size:.9rem;color:var(--muted)}
+.cols{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:1rem;min-height:0}
+.cols.right{grid-template-columns:minmax(0,.85fr) minmax(0,1.3fr)}
+.cols.right .tbl{font-size:1.05rem}
+.cols.right .tbl td,.cols.right .tbl th{padding:.3rem .4rem;white-space:nowrap}
+th.cur,td.cur{background:rgba(184,116,26,.14)}
+
+/* people */
+.people{display:flex;flex-direction:column}
+.plist{flex:1;display:flex;flex-direction:column;justify-content:space-around;padding:0 .8rem .4rem;min-height:0}
+.prow{display:block;width:100%;text-align:left;background:none;border:2px solid transparent;border-radius:.8rem;padding:.3rem .5rem;cursor:pointer;transition:background .3s}
+.prow:hover{background:#fff}
+.prow.sel{border-color:var(--navy);background:#fff}
+.ptop{display:flex;align-items:baseline;justify-content:space-between;gap:.5rem}
+.ptop .nm{font-size:1.2rem;font-weight:700;white-space:nowrap}
+.ptop .nm small{font-weight:600;color:var(--muted);font-size:.95rem;margin-left:.3rem}
+.ptop .amt{font-size:1.6rem;font-weight:700;white-space:nowrap}
+.delta{font-size:1rem;font-weight:700;padding:.05rem .45rem;border-radius:99rem;color:#fff;margin-right:.35rem;vertical-align:.15rem}
+.delta.up{background:var(--green)} .delta.down{background:var(--red)}
+.track{position:relative;height:.55rem;background:rgba(46,77,99,.13);border-radius:99rem;display:flex;margin-top:.3rem}
+.track .lo{background:var(--slate);height:100%;border-radius:99rem 0 0 99rem;transition:width .6s}
+.track .hi{background:var(--gold);height:100%;border-radius:0 99rem 99rem 0;transition:width .6s}
+.track .thr{position:absolute;top:-.25rem;bottom:-.25rem;width:.2rem;background:var(--ink);border-radius:.2rem}
+.psub{font-size:.95rem;color:var(--muted);margin-top:.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pfoot{padding:.2rem 1rem .6rem;font-size:.95rem;color:var(--muted);display:flex;justify-content:space-between;gap:.5rem}
+.sw{display:inline-block;width:.75rem;height:.75rem;border-radius:.2rem;margin-right:.3rem;vertical-align:-.05rem}
+
+/* bottom */
+.bottom{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.5fr) minmax(0,1.1fr);gap:.9rem;min-height:0}
+.bottom .card{display:flex;flex-direction:column}
+.bbody{flex:1;min-height:0;padding:0 1rem .7rem;overflow:hidden}
+.hsum{display:flex;align-items:baseline;gap:.6rem}
+.hsum b{font-size:2.4rem;line-height:1}
+.hlist{list-style:none;margin:.4rem 0 0;padding:0;font-size:1.05rem}
+.hlist li{display:flex;justify-content:space-between;gap:.5rem;padding:.12rem 0;border-bottom:1px solid var(--line)}
+.hlist li:last-child{border-bottom:0}
+.cases{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:1fr;gap:.45rem;height:100%}
+.case{background:#fff;border:2px solid var(--line);border-radius:.7rem;padding:.3rem .5rem;min-width:0;display:flex;flex-direction:column;justify-content:space-between}
+.case b{font-size:1rem;line-height:1.15;display:block}
+.case span{font-size:.95rem;font-weight:700;line-height:1.15}
+.case.k-held span{color:#8a5212} .case.k-clawback span,.case.k-penalty span{color:var(--red)}
+.case.k-paid span{color:var(--green)} .case.k-info span{color:var(--navy)}
+.log{list-style:none;margin:0;padding:0;font-size:1.02rem}
+.log li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.5rem;padding:.2rem 0;border-bottom:1px solid var(--line);line-height:1.25}
+.log li:last-child{border-bottom:0}
+.log .t{color:var(--muted);font-size:.9rem;font-weight:600;padding-top:.08rem}
+.log .x{color:var(--red);font-weight:700} .log .v{color:var(--green);font-weight:700}
+.dim{opacity:.45}
+
+/* "just changed": a solid amber edge and a fill that fades out */
+.changed{animation:changed 5s ease-out}
+@keyframes changed{0%,40%{box-shadow:inset .35rem 0 0 var(--amber);background-color:var(--amberbg)}100%{box-shadow:inset .35rem 0 0 transparent}}
+.prow.changed{animation:changed 6s ease-out}
+
+/* presenter drawer: F2 */
+.drawer{position:absolute;left:.9rem;right:.9rem;bottom:.9rem;background:#fff;border:2px solid var(--navy);border-radius:1rem;padding:.7rem 1rem;z-index:5;display:none;box-shadow:0 1rem 2.5rem -1rem rgba(0,0,0,.35);font-size:1rem}
+.drawer.on{display:block}
+.drawer .steps{display:flex;flex-wrap:wrap;gap:.35rem;margin:.4rem 0}
+.drawer button{border:2px solid var(--edge);background:#fff;border-radius:.5rem;padding:.2rem .55rem;cursor:pointer;font-size:.95rem}
+.drawer button.sel{background:var(--navy);color:#fff;border-color:var(--navy)}
+.drawer textarea{width:100%;height:3.2rem;font:.95rem ui-monospace,Consolas,monospace;border:2px solid var(--edge);border-radius:.5rem;padding:.3rem}
+kbd{font:inherit;font-size:.85rem;background:#fff;border:1px solid var(--edge);border-bottom-width:2px;border-radius:.3rem;padding:0 .3rem}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-<header>
-  <h1>Closer</h1>
-  <p class="tag">Month-end commission close for Lim &amp; Sons Living, a Singapore furniture showroom. Built by team N(Y)P on IBM watsonx Orchestrate.</p>
-</header>
+<div class="app">
+<main class="dash" aria-label="Commission close dashboard">
 
-<main>
-  <div>
-    <section>
-      <h2>How to try it</h2>
-      <p>The chat on this page is the live agent. Every person below is a role you can play by saying who you are. Copy each line into the chat in order. The data is September 2026 sample data, and no real money moves.</p>
-      <ol>
-        <li>
-          <div class="say"><q>Run the month-end close for 2026-09.</q><button class="copy">Copy</button></div>
-          <div class="expect">A form lists 8 bank credits Closer could not match by itself. Tick all 8 and press <b>Confirm ticked matches</b>. Closer then shows each salesperson's commission and the number of held orders.</div>
-        </li>
-        <li>
-          <div class="say"><q>I'm Ravi (S04). I helped close order 1043, I want it split 50/50 with Aisyah.</q><button class="copy">Copy</button></div>
-          <div class="expect">Closer opens a dispute. Order 1043 is held, so its commission is paid to nobody until a manager rules.</div>
-        </li>
-        <li>
-          <div class="say"><q>I'm Ravi, S04. I rule 1043 is 50/50.</q><button class="copy">Copy</button></div>
-          <div class="expect"><span class="no">Refused.</span> A salesperson cannot rule on their own dispute.</div>
-        </li>
-        <li>
-          <div class="say"><q>I'm Jason, S02, sales manager. Ruling on 1043: shared close, split 50/50 between S04 and S05.</q><button class="copy">Copy</button></div>
-          <div class="expect"><span class="ok">Accepted.</span> Ravi and Aisyah's totals update.</div>
-        </li>
-        <li>
-          <div class="say"><q>Prepare the payout.</q><button class="copy">Copy</button></div>
-          <div class="expect">If Closer asks for a yes, answer <code>yes</code>. You get a draft: each person's pay, a clawback and the total. Nothing is paid.</div>
-        </li>
-        <li>
-          <div class="say"><q>I'm Jason, S02. Approve the payout.</q><button class="copy">Copy</button></div>
-          <div class="expect"><span class="no">Refused.</span> Only the owner can approve pay.</div>
-        </li>
-        <li>
-          <div class="say"><q>I'm Mr Lim, S01. Approve.</q><button class="copy">Copy</button></div>
-          <div class="expect"><span class="ok">Approved</span> and logged with who and when. Expected total: S$8,072.33.</div>
-        </li>
-      </ol>
-      <p class="note">On this public page nobody is signed in, so Closer runs in demo mode and accepts the staff ID you type for the approval. In the shop, approval is tied to the owner's own login.</p>
-    </section>
+  <header class="rail">
+    <div class="scene" aria-hidden="true">
+      <svg viewBox="0 0 1600 200" preserveAspectRatio="xMidYMid slice">
+        <defs><linearGradient id="gSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2dcbc"/><stop offset="1" stop-color="#fbf6ec"/></linearGradient>
+        <linearGradient id="gRock" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fffdf9"/><stop offset="1" stop-color="#e6d8c2"/></linearGradient></defs>
+        <rect width="1600" height="200" fill="url(#gSky)"/>
+        <circle cx="1180" cy="60" r="34" fill="#e4bf7f" opacity=".7"/>
+        <path d="M0 200 L0 150 C60 120 90 95 140 100 C180 80 210 78 250 98 C290 70 330 66 370 92 C420 78 470 82 510 110 C560 96 620 96 660 120 C720 110 780 110 830 130 C900 120 960 120 1010 140 C1080 116 1150 104 1210 128 C1280 104 1350 98 1420 120 C1480 104 1550 108 1600 124 L1600 200 Z" fill="url(#gRock)"/>
+      </svg>
+    </div>
+    <div class="brand">
+      <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3c4.5 6.5 4.5 13 0 19.5C15.5 16 15.5 9.5 20 3z" fill="#2e4d63"/><path d="M4 13.5c7.5 0 13 3.3 16 9-7.5 1.2-13-2.2-16-9z" fill="#4f7389"/><path d="M36 13.5c-7.5 0-13 3.3-16 9 7.5 1.2 13-2.2 16-9z" fill="#4f7389"/><path d="M20 23v13" stroke="#2e4d63" stroke-width="2.2" stroke-linecap="round"/></svg>
+      <div><b>Closer</b><span>Lim &amp; Sons Living · Sep 2026</span></div>
+    </div>
+    <ol class="stepper" id="stepper" aria-label="Close progress"></ol>
+    <div class="kpis">
+      <div class="kpi" id="k-total"><small>Total payout</small><b class="money" id="k-total-v">—</b></div>
+      <div class="kpi" id="k-held"><small>Held orders</small><b id="k-held-v">—</b></div>
+      <div class="kstack"><span id="status" class="pill none"><i></i>Not drafted</span><span id="sync" class="sync">Starting…</span></div>
+    </div>
+  </header>
 
-    <section style="margin-top:16px">
-      <h2>The cast</h2>
-      <table>
-        <thead><tr><th>ID</th><th>Name</th><th>Role</th><th>What they can do</th></tr></thead>
-        <tbody>
-          <tr><td>S01</td><td>Mr Lim</td><td>Owner</td><td>Approve or reject the payout</td></tr>
-          <tr><td>S02</td><td>Jason</td><td>Sales manager</td><td>Rule on commission disputes</td></tr>
-          <tr><td>S03</td><td>Mei</td><td>Admin</td><td>Confirm unclear bank matches</td></tr>
-          <tr><td>S04–S09</td><td>Ravi, Aisyah, Wei Ming, Priya, Darren, Siti</td><td>Salespeople</td><td>Earn commission, raise disputes</td></tr>
-          <tr><td>S10, S11</td><td>Ah Seng, Kumar</td><td>Delivery crew</td><td>Not on commission</td></tr>
-        </tbody>
-      </table>
-      <p class="note">You can also ask Closer to explain one person's statement, for example Wei Ming's.</p>
-    </section>
-  </div>
-
-  <section id="chat-section" aria-label="Closer chat">
-    <div id="chat-container"></div>
+  <section class="mid">
+    <article class="card stage" id="stage" aria-live="polite">
+      <div class="ch"><h2 id="stage-title">Ready</h2><span class="tool" id="stage-tool"></span></div>
+      <div class="ribbon" id="ribbon"></div>
+      <div class="body" id="stage-body"></div>
+    </article>
+    <article class="card people">
+      <div class="ch"><h2>Pay by person</h2><span class="tool">nyp_compute_commission</span></div>
+      <div class="plist" id="plist"></div>
+      <div class="pfoot"><span class="nw"><i class="sw" style="background:var(--slate)"></i>3% <i class="sw" style="background:var(--gold);margin-left:.4rem"></i>5% above S$30k</span><span class="nw">Crew: no commission</span></div>
+    </article>
   </section>
+
+  <section class="bottom">
+    <article class="card" id="c-held"><div class="ch"><h2>Held orders</h2><span class="tool">holds</span></div><div class="bbody" id="held"></div></article>
+    <article class="card" id="c-cases"><div class="ch"><h2>Rule cases</h2><span class="tool">closer/rules</span></div><div class="bbody" id="cases"></div></article>
+    <article class="card" id="c-log"><div class="ch"><h2>Activity</h2><span class="tool">from the chat</span></div><div class="bbody"><ul class="log" id="log"></ul></div></article>
+  </section>
+
+  <div class="drawer" id="drawer" role="dialog" aria-label="Presenter controls">
+    <b>Presenter controls</b> <span class="muted">· <kbd>F2</kbd> to close · digits jump to a step · the dashboard stops following the chat until you press Live</span>
+    <div class="steps" id="dsteps"></div>
+    <textarea id="dstate" placeholder="Paste a State line from the chat, e.g. State: matches 27:1021, ..., open disputes 1043, rulings none, payout not drafted"></textarea>
+    <div style="margin-top:.35rem;display:flex;gap:.4rem"><button id="dapply">Apply State line</button><button id="dlive" class="sel">Live: following the chat</button></div>
+  </div>
 </main>
 
-<footer>Team N(Y)P · AI-GNITION 2026 · Nexius Labs problem statement 2, "One Less Thing". Sample data only.</footer>
+<aside class="chat" aria-label="Closer chat">
+  <div id="chat-container"></div>
+  <div class="chatfail" id="chatfail"><div><b>The chat did not load.</b><br>Check the connection, then reload. The dashboard can still step through the demo: press <kbd>F2</kbd>.<br><button onclick="location.reload()">Reload</button></div></div>
+</aside>
+</div>
 
 <script>
-  document.querySelectorAll("button.copy").forEach(function (btn) {
-    btn.addEventListener("click", function () {
-      var text = btn.previousElementSibling.textContent;
-      var done = function () { btn.textContent = "Copied"; setTimeout(function () { btn.textContent = "Copy"; }, 1200); };
-      if (navigator.clipboard) { navigator.clipboard.writeText(text).then(done, function () {}); }
-    });
-  });
+"use strict";
+/* ============ settings ============ */
+const PYODIDE_URL = "https://cdn.jsdelivr.net/pyodide/v0.27.2/full/";
+const MONTH_LABEL = "September 2026";
+const TIER = 3000000;  // plan_v1/v2 tier_threshold_cents; the engine owns the maths, this only scales the bar
+const STEPS = ["Load","Match","Confirm","Calculate","Dispute","Draft","Approve"];
+const SCRIPT = [
+  "Run the month-end close for 2026-09.",
+  "I'm Ravi (S04). I helped close order 1043, I want it split 50/50 with Aisyah.",
+  "I'm Ravi, S04. I rule 1043 is 50/50.",
+  "I'm Jason, S02, sales manager. Ruling on 1043: shared close, split 50/50 between S04 and S05.",
+  "Prepare the payout.",
+  "I'm Jason, S02. Approve the payout.",
+  "I'm Mr Lim, S01. Approve.",
+];
 
-  // From `orchestrate channels webchat embed --agent-name nyp_closer --env live`,
-  // with the layout switched to "custom" so the chat renders inside the page.
-  window.wxOConfiguration = {
-    orchestrationID: "00b44f81c3ae411487c17d529f10457d_e1fa4625-3404-4a78-b267-c6474f83803e",
-    hostURL: "https://ca-tor.watson-orchestrate.cloud.ibm.com",
-    crn: "crn:v1:bluemix:public:watsonx-orchestrate:ca-tor:a/00b44f81c3ae411487c17d529f10457d:e1fa4625-3404-4a78-b267-c6474f83803e::",
-    deploymentPlatform: "ibmcloud",
-    chatOptions: {
-      agentId: "9aa0e418-3ad4-4bbe-9e9f-81948f379081",
-      agentEnvironmentId: "beb7f16f-294e-4152-a9eb-0da3e2331414"
-    },
-    layout: {
-      form: "custom",
-      showOrchestrateHeader: true,
-      customElement: document.getElementById("chat-container")
+/* ============ helpers ============ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const money = (c, sign) => { const a = (Math.abs(c) / 100).toLocaleString("en-SG", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  return (c < 0 ? "−" : sign && c > 0 ? "+" : "") + "S$" + a; };
+const now = () => new Date().toLocaleTimeString("en-SG", {hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false});
+const I = {
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M7 7l10 10M17 7L7 17"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4M12 17.5v.2"/></svg>',
+  ok: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.8 2.8L16.5 9.5"/></svg>',
+  dot: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="currentColor"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M9 7v10M15 7v10"/></svg>',
+};
+function flash(el){ if(!el) return; el.classList.remove("changed"); void el.offsetWidth; el.classList.add("changed"); }
+function countUp(el, from, to){
+  if(from === to || from == null || matchMedia("(prefers-reduced-motion: reduce)").matches){ el.textContent = money(to); return; }
+  const t0 = performance.now(), d = 700;
+  const step = t => { const k = Math.min(1, (t - t0) / d), e = 1 - Math.pow(1 - k, 3);
+    el.textContent = money(Math.round(from + (to - from) * e)); if(k < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+
+/* ============ State line parsing ============
+   The agent ends every reply with:
+   State: matches 27:1021, 28:1022, ..., open disputes 1043, rulings <list>, payout <not drafted|draft|approved|rejected> */
+const ORDER = "(?:RS-\\d+|\\d{4})";
+function stateLineOf(text){
+  const i = text.lastIndexOf("State:");
+  if(i < 0) return null;
+  return text.slice(i + 6).split(/\n/)[0].replace(/[*`_]/g, "").trim();
+}
+function segment(line, key, nextKeys){
+  const m = line.match(new RegExp(key, "i")); if(!m) return null;
+  let rest = line.slice(m.index + m[0].length), end = rest.length;
+  for(const k of nextKeys){ const n = rest.search(new RegExp(k, "i")); if(n >= 0 && n < end) end = n; }
+  return rest.slice(0, end);
+}
+function splitFrom(text){
+  // "S04 50, S05 50" | "S04: 50%" | "50% to S04" | "50/50 between S04 and S05" | {"S04": 50, ...}
+  const out = {};
+  let m, re = /"?(S\d{2})"?\s*(?:[:=]|at|gets)?\s*(\d{1,3})(?:\.0+)?\s*%?/gi;
+  while((m = re.exec(text))) out[m[1].toUpperCase()] = +m[2];
+  if(sum(out) === 100) return out;
+  const o2 = {}; re = /(\d{1,3})\s*%\s*(?:to|for)?\s*(?:\w+\s*)?\(?(S\d{2})\)?/gi;
+  while((m = re.exec(text))) o2[m[2].toUpperCase()] = +m[1];
+  if(sum(o2) === 100) return o2;
+  const ratio = text.match(/(\d{1,3})\s*\/\s*(\d{1,3})(?:\s*\/\s*(\d{1,3}))?/);
+  const ids = [...new Set((text.match(/S\d{2}/gi) || []).map(s => s.toUpperCase()))];
+  if(ratio){ const ps = ratio.slice(1).filter(Boolean).map(Number);
+    if(ps.length === ids.length && ps.reduce((a, b) => a + b, 0) === 100){ const o3 = {}; ids.forEach((id, k) => o3[id] = ps[k]); return o3; } }
+  return null;
+}
+function sum(o){ return Object.values(o).reduce((a, b) => a + b, 0); }
+function parseState(text, lastUser){
+  const line = stateLineOf(text); if(line == null) return null;
+  const K = ["open disputes", "rulings?", "payout"];
+  const ms = segment(line, "matches?", K) ?? "";
+  const ds = segment(line, "open disputes?", ["rulings?", "payout"]) ?? "";
+  const rs = segment(line, "rulings?", ["payout"]) ?? "";
+  const ps = (segment(line, "payout", []) ?? "").toLowerCase();
+  const approved_matches = {};
+  for(const m of ms.matchAll(new RegExp("(\\d{1,3})\\s*(?::|->|→|=)\\s*(" + ORDER + ")", "g"))) approved_matches[m[1]] = m[2];
+  const open_disputes = [...new Set(ds.match(new RegExp("\\b" + ORDER + "\\b", "g")) || [])];
+  const split_overrides = {}, unknownSplits = [];
+  const ids = [...rs.matchAll(new RegExp("\\b(" + ORDER + ")\\b", "g"))];
+  ids.forEach((m, k) => {
+    const part = rs.slice(m.index + m[0].length, k + 1 < ids.length ? ids[k + 1].index : rs.length);
+    let sp = splitFrom(part);
+    if(!sp && lastUser && lastUser.includes(m[1])) sp = splitFrom(lastUser);
+    if(!sp && S.overrides[m[1]]) sp = S.overrides[m[1]];
+    if(sp) split_overrides[m[1]] = sp; else unknownSplits.push(m[1]);
+  });
+  const payout = /not\s+drafted/.test(ps) ? "not drafted" : /approved/.test(ps) ? "approved" : /rejected/.test(ps) ? "rejected" : /draft/.test(ps) ? "draft" : "not drafted";
+  return {approved_matches, open_disputes, split_overrides, payout, rulings: ids.map(m => m[1]), unknownSplits};
+}
+function refusalsIn(text){
+  // The tools' PermissionError text, which the agent is told to quote as it is.
+  const out = [], q = "['‘’\"`]?";
+  let m = text.match(new RegExp(q + "(S\\d{2})" + q + " is not authori[sz]ed to record a ruling[^.]*\\.\\s*(Only sales managers may rule:[^.\\n]*\\.?)?", "i"));
+  if(m) out.push({kind: "ruling", who: m[1], text: (m[2] || "Only a sales manager may rule.").trim()});
+  m = text.match(new RegExp(q + "(S\\d{2})" + q + " is not authori[sz]ed to approve or reject a payout[^.]*\\.\\s*(Only the owner may:[^.\\n]*\\.?)?", "i"));
+  if(m) out.push({kind: "approval", who: m[1], text: (m[2] || "Only the owner may approve.").trim()});
+  m = text.match(new RegExp("You typed " + q + "(S\\d{2})" + q + ", but this login is linked to", "i"));
+  if(m) out.push({kind: "approval", who: m[1], text: "The login is not the owner's."});
+  return out;
+}
+const logEntryIn = text => (text.match(/\d{4}-\d\d-\d\dT[\d:.+\-]+\s+S\d{2}\s+(?:approved|rejected)\s+the\s+\d{4}-\d\d\s+payout\s+of\s+S\$[\d,.]+[^\n]*/) || [null])[0];
+const keyOf = st => JSON.stringify([Object.entries(st.approved_matches).map(([k, v]) => [+k, v]).sort((a, b) => a[0] - b[0]),
+  [...st.open_disputes].sort(), Object.entries(st.split_overrides).sort().map(([k, v]) => [k, Object.entries(v).sort()])]);
+
+/* ============ engine: the repo's Python in the browser ============ */
+let engine = null, engineState = "loading", demo = null;
+function loadScript(src){ return new Promise((ok, no) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
+async function startEngine(){
+  try{
+    await loadScript(PYODIDE_URL + "pyodide.js");
+    const py = await loadPyodide({indexURL: PYODIDE_URL});
+    await py.loadPackage(["pydantic", "pyyaml"]);
+    const zip = await (await fetch("engine/engine.zip", {cache: "no-cache"})).arrayBuffer();
+    py.unpackArchive(zip, "zip", {extractDir: "/engine"});
+    py.runPython(`
+import sys, json
+sys.path.insert(0, "/engine")
+from closer.dashboard.snapshot import snapshot, dispute_view
+def closer_run(state_json):
+    s = json.loads(state_json)
+    args = (s["approved_matches"], s["open_disputes"], s["split_overrides"])
+    out = snapshot(*args, data_dir="/engine/data/golden")
+    if not out["error"]:
+        orders = sorted(set(s["open_disputes"]) | set(s["split_overrides"]) | set(s.get("watch", [])))
+        out["disputes"] = {o: dispute_view(o, *args, data_dir="/engine/data/golden") for o in orders}
+    return json.dumps(out)
+`);
+    engine = py.globals.get("closer_run");
+    engineState = "ready";
+  }catch(err){
+    console.error("Closer engine failed to load", err);
+    engineState = "failed";
+  }
+  document.body.dataset.engine = engineState;
+  setSync();
+  if(S.pending){ const p = S.pending; S.pending = null; await applyState(p.st, p.meta); }
+}
+function compute(st){
+  if(engine){ return JSON.parse(engine(JSON.stringify({...st, watch: [...S.watch]}))); }
+  const hit = demo && demo.steps.find(s => s.state && keyOf(s.state) === keyOf(st));
+  return hit ? {...hit.snapshot, disputes: hit.disputes} : null;
+}
+
+/* ============ app state ============ */
+const S = {
+  st: null, snap: null, prev: null, payout: "not drafted", view: "idle", person: null,
+  overrides: {}, watch: new Set(), events: [], refusals: {ruling: 0, approval: 0}, disputeInfo: {},
+  live: true, pending: null, lastUser: "", lastStateAt: null, syncNote: "", stepIndex: 0,
+};
+function addLog(html, cls){ S.events.unshift({t: now(), html, cls}); S.events = S.events.slice(0, 12); renderLog(true); }
+
+/* Apply one close state, from the chat or the presenter drawer. */
+async function applyState(st, meta = {}){
+  if(engineState === "loading"){ S.pending = {st, meta}; setSync(); return; }
+  const snap = compute(st);
+  if(!snap){ S.syncNote = "This state is not in the offline steps and the engine is not loaded"; setSync("bad"); return; }
+  if(snap.error){ S.syncNote = "The engine refused this state: " + snap.error; setSync("bad"); return; }
+  const old = S.st, oldSnap = S.snap, changes = [];
+  [...st.open_disputes, ...Object.keys(st.split_overrides)].forEach(o => S.watch.add(o));
+  if(!old) changes.push("load");
+  else{
+    if(keyOf({...old, open_disputes: [], split_overrides: {}}) !== keyOf({...st, open_disputes: [], split_overrides: {}})) changes.push("matches");
+    if(JSON.stringify([...old.open_disputes].sort()) !== JSON.stringify([...st.open_disputes].sort()) ||
+       JSON.stringify(old.split_overrides) !== JSON.stringify(st.split_overrides) ||
+       (meta.rulings || []).some(o => !(S.ruled || new Set()).has(o))) changes.push("dispute");
+    if(old.payout !== st.payout) changes.push("payout");
+  }
+  S.ruled = new Set([...(S.ruled || []), ...(meta.rulings || [])]);
+  const numbersMoved = oldSnap && oldSnap.ready && snap.ready && oldSnap.totals.total_cents !== snap.totals.total_cents
+    || oldSnap && oldSnap.ready && snap.ready && oldSnap.people.some((p, i) => p.total_cents !== snap.people[i].total_cents);
+  if(numbersMoved || (oldSnap && !oldSnap.ready && snap.ready)) S.prev = oldSnap;
+  S.deltaFresh = !!numbersMoved;   // badges belong to the reply that moved the money, not to later ones
+  S.overrides = {...S.overrides, ...st.split_overrides};
+  S.st = st; S.snap = snap; S.payout = st.payout; S.lastStateAt = now();
+  narrate(old, oldSnap, st, snap, changes, meta);
+  (meta.refusals || []).forEach(r => { S.refusals[r.kind]++; });
+  const view = (meta.refusals || []).length ? (meta.refusals[0].kind === "ruling" ? "dispute" : "payout")
+    : changes.includes("payout") ? "payout" : changes.includes("dispute") ? "dispute"
+    : changes.includes("matches") || changes.includes("load") ? "bank" : S.view;
+  if(changes.length || (meta.refusals || []).length) S.person = null;
+  S.view = view === "idle" ? "bank" : view;
+  render(changes, meta);
+}
+
+function nameOf(id){ const s = S.snap && S.snap.staff.find(x => x.staff_id === id); return s ? `${s.name} (${id})` : id; }
+function roleHolder(role){ const s = S.snap && S.snap.staff.find(x => x.role === role); return s ? `${s.name} (${s.staff_id})` : ""; }
+
+function narrate(old, oldSnap, st, snap, changes, meta){
+  const rib = [];
+  if(changes.includes("load")){
+    addLog(`Month loaded: <b>${snap.intake.orders}</b> orders, <b>${snap.intake.duplicates.length}</b> duplicates skipped`);
+    if(snap.bank.unconfirmed.length) rib.push(`${snap.bank.unconfirmed.length} bank lines need a person to confirm`);
+  }
+  if(changes.includes("matches") || (changes.includes("load") && Object.keys(st.approved_matches).length)){
+    const n = Object.keys(st.approved_matches).length, need = snap.bank.needs_person;
+    addLog(`Bank lines confirmed: <b>${n} of ${need}</b>`, n >= need ? "v" : "");
+    rib.push(snap.ready ? `All ${need} bank lines confirmed: commission worked out` : `${snap.bank.unconfirmed.length} bank lines still unconfirmed`);
+  }
+  if(oldSnap && !oldSnap.ready && snap.ready) addLog(`Commission worked out: <b>${money(snap.totals.total_cents)}</b>, ${snap.totals.hold_count} held`);
+  const was = new Set(old ? old.open_disputes : []);
+  st.open_disputes.filter(o => !was.has(o)).forEach(o => { addLog(`Dispute opened on <b>${esc(o)}</b>: order held`, "x"); rib.push(`Order ${o} held for a dispute`); });
+  (meta.refusals || []).forEach(r => {
+    const what = r.kind === "ruling" ? "rule on a dispute" : "approve the payout";
+    addLog(`<span class="x">Refused:</span> ${esc(nameOf(r.who))} tried to ${what}. ${esc(r.text)}`);
+    rib.push(`Refused: ${nameOf(r.who)} cannot ${what}`);
+  });
+  Object.keys(st.split_overrides).filter(o => !(old && old.split_overrides[o])).forEach(o => {
+    const sp = Object.entries(st.split_overrides[o]).map(([id, p]) => `${esc(nameOf(id).split(" (")[0])} ${p}%`).join(" / ");
+    addLog(`<span class="v">Ruled</span> by ${esc(roleHolder("sales_manager"))}: <b>${esc(o)}</b> split ${sp}`);
+    rib.push(`Ruling on ${o}: ${sp.replace(/<[^>]+>/g, "")}`);
+  });
+  (meta.unknownSplits || []).forEach(o => { if(!(old && old.split_overrides[o])) addLog(`Ruled on <b>${esc(o)}</b>: recorded split stands`); });
+  if(old && old.payout !== st.payout){
+    if(st.payout === "draft"){ addLog(`Payout drafted: <b>${money(snap.totals.total_cents)}</b>. Nothing paid.`); rib.push("Payout drafted: nothing has been paid"); }
+    if(st.payout === "approved"){ addLog(`<span class="v">Approved</span> by the owner, ${esc(roleHolder("owner"))}: <b>${money(snap.totals.total_cents)}</b>`); rib.push(`Approved by ${roleHolder("owner")}: ready for payroll`); }
+    if(st.payout === "rejected"){ addLog(`<span class="x">Rejected</span> by the owner, ${esc(roleHolder("owner"))}`); rib.push("Payout rejected: it stays a draft"); }
+  }
+  if(meta.logEntry) addLog(`<span class="muted">Log:</span> ${esc(meta.logEntry)}`);
+  if(S.prev && snap && snap.ready){
+    const moved = snap.people.map((p, i) => [p, p.total_cents - (S.prev.people[i] ? S.prev.people[i].total_cents : 0)]).filter(x => x[1]);
+    if(moved.length && moved.length <= 3 && (changes.includes("dispute"))) rib.push(moved.map(([p, d]) => `${p.name} ${money(d, true)}`).join(", "));
+  }
+  const r = $("ribbon");
+  if(rib.length){ r.textContent = "Just now: " + rib.join(" · "); r.classList.remove("on"); void r.offsetWidth; r.classList.add("on"); }
+}
+
+/* ============ render ============ */
+function stepIndex(){
+  const st = S.st, snap = S.snap;
+  if(!st) return {done: 0, sub: []};
+  let done = 2;                              // Load, Match
+  if(snap.ready) done = 4;                   // Confirm, Calculate
+  const disputing = st.open_disputes.length > 0;
+  const ruled = Object.keys(st.split_overrides).length > 0 || (S.ruled && S.ruled.size > 0);
+  if(snap.ready && !disputing && (ruled || st.payout !== "not drafted")) done = 5;
+  if(st.payout === "draft") done = 6;
+  if(st.payout === "approved" || st.payout === "rejected") done = 7;
+  const sub = [
+    `${snap.intake.orders} orders`, `${snap.bank.needs_person} by hand`,
+    `${snap.bank.needs_person - snap.bank.unconfirmed.length}/${snap.bank.needs_person}`,
+    snap.ready ? `${snap.totals.line_count} lines` : "",
+    disputing ? `${st.open_disputes.length} open` : ruled ? "ruled" : "none",
+    st.payout === "not drafted" ? "" : money(snap.totals.total_cents),
+    st.payout === "approved" ? "approved" : st.payout === "rejected" ? "rejected" : S.refusals.approval ? `${S.refusals.approval} refused` : "",
+  ];
+  return {done, sub, disputing};
+}
+function renderRail(changes){
+  const {done, sub, disputing} = stepIndex();
+  $("stepper").innerHTML = STEPS.map((s, i) => {
+    const isDone = i < done && !(i === 4 && disputing), active = !isDone && (i === done || (i === 4 && disputing));
+    const label = i === 6 && S.payout === "rejected" ? "Rejected" : s;
+    return `<li class="${isDone ? "done" : active ? "active" : ""}"><span class="dot">${isDone ? I.check : i + 1}</span><span class="l">${label}</span><span class="l muted" style="font-size:.85rem">${esc(sub[i] || "")}</span></li>`;
+  }).join("");
+  const snap = S.snap, tv = $("k-total-v"), hv = $("k-held-v");
+  if(snap && snap.ready){
+    const before = S.prev && S.prev.ready ? S.prev.totals.total_cents : null;
+    if(tv.dataset.v !== String(snap.totals.total_cents)){ countUp(tv, tv.dataset.v ? +tv.dataset.v : before, snap.totals.total_cents); if(tv.dataset.v) flash($("k-total")); tv.dataset.v = snap.totals.total_cents; }
+    if(hv.textContent !== String(snap.totals.hold_count)){ if(hv.dataset.v) flash($("k-held")); hv.textContent = snap.totals.hold_count; hv.dataset.v = 1; }
+  }else{ tv.textContent = "—"; tv.dataset.v = ""; hv.textContent = "—"; }
+  const st = {"not drafted": ["none", "Not drafted"], draft: ["draft", "Draft · not paid"], approved: ["approved", "Approved"], rejected: ["rejected", "Rejected"]}[S.payout];
+  const pill = $("status"); const was = pill.className;
+  pill.className = "pill " + st[0]; pill.innerHTML = `<i></i>Payout: ${st[1]}`;
+  if(was !== pill.className && S.st) flash(pill);
+  setSync();
+}
+function setSync(level){
+  const el = $("sync");
+  let txt, cls = "";
+  if(!S.live){ txt = `Presenter step ${S.stepIndex}`; cls = "warn"; }
+  else if(engineState === "loading"){ txt = S.pending ? "Engine warming up: reply queued" : "Engine warming up…"; cls = "warn"; }
+  else if(level === "bad" || level === "warn"){ txt = S.syncNote; cls = level; }
+  else if(S.lastStateAt){ txt = `Synced with chat ${S.lastStateAt}`; cls = "ok"; }
+  else txt = engineState === "failed" ? "Engine offline: demo steps only" : "Engine ready · waiting for the chat";
+  if(engineState === "failed" && !level && S.live) cls = "warn";
+  el.className = "sync " + cls; el.textContent = txt; el.title = S.syncNote || txt;
+}
+
+function renderPeople(changes){
+  const snap = S.snap, prev = S.prev;
+  const ready = snap && snap.ready;
+  const people = snap ? snap.people : (demo ? demo.steps[2].snapshot.people.map(p => ({...p})) : []);
+  const scale = Math.max(TIER * 1.45, ...people.map(p => p.sales_cents));
+  $("plist").innerHTML = people.map((p, i) => {
+    const d = S.deltaFresh && ready && prev && prev.ready && prev.people[i] ? p.total_cents - prev.people[i].total_cents : 0;
+    const lo = Math.min(p.sales_cents, TIER), hi = Math.max(0, p.sales_cents - TIER);
+    const sub = !ready ? "Waiting for bank confirmations"
+      : hi ? `${money(p.sales_cents)} sales · ${money(hi)} at 5%` : `${money(p.sales_cents)} sales · ${money(TIER - p.sales_cents)} to 5%`;
+    const extra = ready ? [p.bonus_cents ? `bonus ${money(p.bonus_cents)}` : "", p.clawback_cents ? `clawback ${money(p.clawback_cents)}` : ""].filter(Boolean).join(" · ") : "";
+    return `<button class="prow ${S.person === p.staff_id && S.view === "statement" ? "sel" : ""}" data-person="${p.staff_id}" data-d="${d}">
+      <div class="ptop"><span class="nm">${esc(p.name)}<small>${p.staff_id}</small></span>
+        <span>${d ? `<span class="delta ${d > 0 ? "up" : "down"}">${money(d, true)}</span>` : ""}<span class="amt money">${ready ? money(p.total_cents) : "—"}</span></span></div>
+      <div class="track ${ready ? "" : "dim"}"><span class="lo" style="width:${ready ? lo / scale * 100 : 0}%"></span><span class="hi" style="width:${ready ? hi / scale * 100 : 0}%"></span><i class="thr" style="left:${TIER / scale * 100}%"></i></div>
+      <div class="psub">${esc(sub)}${extra ? " · " + esc(extra) : ""}</div></button>`;
+  }).join("");
+  if(changes && changes.some(c => c === "dispute" || c === "matches")){
+    document.querySelectorAll(".prow").forEach(el => { if(+el.dataset.d) flash(el); });
+  }
+}
+
+function renderHeld(changes){
+  const snap = S.snap, el = $("held");
+  if(!snap || !snap.ready){ el.innerHTML = `<div class="muted" style="font-size:1.05rem">Appears when commission is worked out. Held orders earn nothing this month.</div>`; return; }
+  el.innerHTML = `<div class="hsum"><b>${snap.totals.hold_count}</b><span class="muted">held · ${money(snap.totals.held_value_cents)} of sales</span></div>
+    <ul class="hlist">${snap.hold_groups.slice(0, 4).map(g => `<li class="${g.group === "Dispute open" ? "neg" : ""}"><span>${esc(g.group)}</span><b>${g.count}</b></li>`).join("")}</ul>`;
+  if(changes && changes.includes("dispute")) flash($("c-held"));
+}
+function renderCases(){
+  const snap = S.snap && S.snap.ready ? S.snap : null;
+  const src = snap || (demo && demo.steps[2].snapshot);
+  if(!src){ $("cases").innerHTML = ""; return; }
+  $("cases").innerHTML = `<div class="cases ${snap ? "" : "dim"}">${src.cases.map(c => `<div class="case k-${c.kind}" title="${esc(c.text)} Orders: ${esc(c.orders.join(", "))}"><b>${esc(c.title)}</b><span>${esc(c.effect)}</span></div>`).join("")}
+    <div class="case k-info" title="Commission is worked out on the price before 9% GST."><b>GST taken out</b><span>Paid on pre-GST price</span></div></div>`;
+}
+function renderLog(fresh){
+  $("log").innerHTML = S.events.length ? S.events.slice(0, 4).map((e, i) => `<li class="${i === 0 && fresh ? "changed" : ""}"><span class="t">${e.t}</span><span class="${e.cls || ""}">${e.html}</span></li>`).join("")
+    : `<li><span class="t">—</span><span class="muted">Each step the agent takes shows up here, including refused attempts.</span></li>`;
+}
+
+/* ---- stage views ---- */
+function view(title, tool, html){ $("stage-title").textContent = title; $("stage-tool").textContent = tool; const b = $("stage-body"); b.innerHTML = `<div class="view" style="display:contents">${html}</div>`; }
+function idleView(){
+  view(`${MONTH_LABEL} commission close`, "live agent →", `
+    <div class="idle">
+      <div><h3>Try it in the chat</h3><ol>${SCRIPT.map(s => `<li><div class="say"><q>${esc(s)}</q><button class="copy">Copy</button></div></li>`).join("")}</ol></div>
+      <div><h3>Who is who</h3><table class="tbl cast"><tbody>
+        <tr><td><b>S01</b></td><td>Mr Lim</td><td class="muted">Owner: approves the payout</td></tr>
+        <tr><td><b>S02</b></td><td>Jason</td><td class="muted">Sales manager: rules on disputes</td></tr>
+        <tr><td><b>S03</b></td><td>Mei</td><td class="muted">Admin: confirms bank matches</td></tr>
+        <tr><td><b>S04–S09</b></td><td colspan="2">Ravi, Aisyah, Wei Ming, Priya, Darren, Siti <span class="muted">· salespeople</span></td></tr>
+        <tr><td><b>S10–S11</b></td><td colspan="2">Ah Seng, Kumar <span class="muted">· delivery crew, no commission</span></td></tr></tbody></table>
+        <p class="muted" style="font-size:1.05rem;margin:.7rem 0 0">This board follows the chat. After each reply it reads the agent's State line and reruns the same commission rules the agent's tools use. Sample data only; no money moves. In demo mode the typed staff ID is accepted for approval.</p>
+      </div>
+    </div>`);
+}
+function bankView(){
+  const snap = S.snap, b = snap.bank, i = snap.intake;
+  const rows = b.lines.map(l => {
+    const ok = !!l.confirmed_order;
+    return `<tr class="${ok ? "" : "unc"}"><td><span class="tick ${ok ? "on" : "off"}">${ok ? I.check : ""}</span></td><td><b>${l.line_no}</b></td><td class="nw">${esc(l.day.slice(5).split("-").reverse().join("/"))}</td><td>${esc(l.description)}</td><td class="r nw">${money(l.amount_cents)}</td>
+      <td><b>${esc(ok ? l.confirmed_order : l.candidates.join(", ") || "?")}</b> <span class="muted">${ok ? esc(l.salesperson) : "suggested"}</span></td><td class="muted">${esc(l.reason.replace(/^\S+: /, ""))}</td></tr>`;
+  }).join("");
+  const u = b.unconfirmed.length;
+  view("Load and bank matching", "nyp_load_month · nyp_match_payments", `
+    <div class="row">
+      <div class="stat"><b>${i.orders}</b><span>orders: ${i.pos} till + ${i.roadshow} roadshow</span></div>
+      <div class="stat"><b>${i.duplicates.length}</b><span>roadshow rows also in the till, skipped</span></div>
+      <div class="stat"><b>${b.auto_matched}</b><span>bank credits matched by reference</span></div>
+      <div class="stat" style="${u ? "border-color:#d99a8b;background:var(--redbg)" : "border-color:#9bc9ad;background:var(--greenbg)"}"><b class="${u ? "neg" : "pos"}">${u}</b><span>${u ? "still need a person" : "left to confirm"}</span></div>
+    </div>
+    ${u ? `<div class="banner bad">${I.alert}<span><b>${u} of ${b.needs_person} bank lines unconfirmed.</b> Closer never guesses: Mei ticks them in the form. The payout cannot be drafted until all are confirmed.</span></div>`
+        : `<div class="banner good">${I.ok}<span><b>All ${b.needs_person} lines confirmed by a person.</b> Commission worked out: ${money(snap.totals.total_cents)}, ${snap.totals.hold_count} orders held.</span></div>`}
+    <table class="tbl"><thead><tr><th></th><th>Line</th><th>Date</th><th>Bank says</th><th class="r">Amount</th><th>Order</th><th>Why it needed a person</th></tr></thead><tbody>${rows}</tbody></table>`);
+}
+function disputeView(){
+  const snap = S.snap, st = S.st;
+  const ids = [...new Set([...st.open_disputes, ...Object.keys(st.split_overrides), ...S.watch])];
+  const oid = st.open_disputes[0] || [...ids].reverse().find(o => snap.disputes && snap.disputes[o]) || ids[0];
+  const dv = snap.disputes && snap.disputes[oid];
+  if(!dv || dv.error){ view("Dispute", "nyp_raise_dispute · nyp_record_ruling", `<div class="banner amber">${I.alert}<span>${esc(dv ? dv.error : "No dispute on record yet.")}</span></div>`); return; }
+  const status = st.open_disputes.includes(oid) ? "held" : st.split_overrides[oid] ? "ruled" : (S.ruled && S.ruled.has(oid)) ? "ruled" : "none";
+  const cols = [["before", "Before dispute"], ["held", "While held"], ["after", "After ruling"]];
+  const cur = status === "held" ? "held" : status === "ruled" ? "after" : "before";
+  const refusedR = S.events.filter(e => /tried to rule/.test(e.html)).reverse();
+  const tl = [
+    [true, "var(--navy)", I.dot, S.disputeInfo[oid]
+      ? `<b>${esc(nameOf(S.disputeInfo[oid].by))}</b> raised a dispute: “${esc(S.disputeInfo[oid].claim)}”`
+      : `<b>Dispute raised</b> on order ${esc(oid)}. A dispute opens a case for the sales manager; it changes no pay by itself.`],
+    [true, "var(--amber)", I.pause, `<b>Order ${esc(oid)} held.</b> Its commission is paid to nobody until a manager rules.`],
+    ...refusedR.map(e => [true, "var(--red)", I.x, e.html]),
+    [status === "ruled", "var(--green)", I.check, status === "ruled" ? `<b>Ruled</b> by ${esc(roleHolder("sales_manager"))}${dv.ruled_split ? `: ${Object.entries(dv.ruled_split).map(([n, p]) => `${esc(n)} ${p}%`).join(" / ")}` : ": recorded split stands"}.` : `<span class="muted">Waiting for ${esc(roleHolder("sales_manager") || "the sales manager")} to rule…</span>`],
+  ];
+  view(`Dispute · order ${oid}`, "nyp_raise_dispute · nyp_record_ruling", `
+    <div class="cols right">
+      <div>
+        <div class="row" style="margin-bottom:.6rem">
+          <div class="stat"><b class="money">${money(dv.net_cents)}</b><span>order ${esc(oid)} · ${esc(dv.customer)} · ${esc(dv.created_on.slice(8))}/${esc(dv.created_on.slice(5, 7))}</span></div>
+          <div class="stat"><b style="font-size:1.35rem;padding:.3rem 0">${Object.entries(dv.recorded_split).map(([n, p]) => `${esc(n)} ${p}%`).join(" / ")}</b><span>split on the till record</span></div>
+        </div>
+        <ol class="tl">${tl.map(([on, c, ic, h]) => `<li class="${on ? "" : "dim"}"><span class="td" style="background:${on ? c : "#b9b2a8"}">${ic}</span>${h}</li>`).join("")}</ol>
+      </div>
+      <div>
+        <table class="tbl"><thead><tr><th>Pay this month</th>${cols.map(c => `<th class="r ${c[0] === cur ? "cur" : ""}">${c[1]}</th>`).join("")}</tr></thead><tbody>
+          ${dv.people.map(p => `<tr><td><b>${esc(p.name)}</b> <span class="muted">${p.staff_id}</span></td>${cols.map(c => `<td class="r ${c[0] === cur ? "cur" : ""}">${p[c[0]] != null ? money(p[c[0]]) : "—"}</td>`).join("")}</tr>`).join("")}
+        </tbody><tfoot><tr><td>Everyone</td>${cols.map(c => `<td class="r ${c[0] === cur ? "cur" : ""}">${dv.all[c[0]] != null ? money(dv.all[c[0]]) : "—"}</td>`).join("")}</tr></tfoot></table>
+        <p class="muted" style="font-size:1rem;margin:.6rem 0 0">Only a sales manager can rule, and the tool checks that, not the chat.${status === "held" ? " Nobody is paid for this order while it is held." : ""}</p>
+      </div>
+    </div>`);
+}
+function payoutView(){
+  const snap = S.snap;
+  if(!snap.ready){ view("Payout", "nyp_prepare_payout", `<div class="banner bad">${I.alert}<span>The payout cannot be drafted: ${snap.bank.unconfirmed.length} bank lines are unconfirmed.</span></div>`); return; }
+  if(S.payout === "not drafted"){
+    view("Payout", "nyp_prepare_payout · nyp_approve_payout", `<div class="banner amber">${I.alert}<span><b>Not drafted yet.</b> Closer drafts the payout only after an explicit yes.</span></div>`); return;
+  }
+  const people = snap.people.filter(p => p.total_cents);
+  const banner = S.payout === "approved" ? `<div class="banner good">${I.ok}<span><b>Approved by the owner, ${esc(roleHolder("owner"))}.</b> Ready for payroll. Closer itself sends no money.</span></div>`
+    : S.payout === "rejected" ? `<div class="banner bad">${I.alert}<span><b>Rejected by the owner.</b> The payout stays a draft and nothing is paid.</span></div>`
+    : `<div class="banner amber">${I.alert}<span><b>Draft: nothing has been paid.</b> Only the owner, ${esc(roleHolder("owner"))}, can approve it.</span></div>`;
+  const decisions = S.events.filter(e => /tried to approve|Approved|Rejected|Log:/.test(e.html)).slice(0, 3);
+  view("Payout and approval", "nyp_prepare_payout · nyp_approve_payout", `${banner}
+    <div class="cols">
+      <table class="tbl"><thead><tr><th>Salesperson</th><th class="r">Earned</th><th class="r">Clawback</th><th class="r">Pay</th></tr></thead><tbody>
+        ${people.map(p => `<tr><td><b>${esc(p.name)}</b> <span class="muted">${p.staff_id}</span></td><td class="r">${money(p.total_cents - p.clawback_cents)}</td><td class="r ${p.clawback_cents ? "neg" : "muted"}">${p.clawback_cents ? money(p.clawback_cents) : "—"}</td><td class="r"><b>${money(p.total_cents)}</b></td></tr>`).join("")}
+      </tbody><tfoot><tr><td>Total</td><td class="r">${money(snap.totals.total_cents - snap.totals.clawback_cents)}</td><td class="r neg">${money(snap.totals.clawback_cents)}</td><td class="r">${money(snap.totals.total_cents)}</td></tr></tfoot></table>
+      <div>
+        <div class="stat" style="margin-bottom:.6rem"><b>${snap.totals.hold_count}</b><span>orders held out of this payout</span></div>
+        ${snap.clawbacks.map(c => `<div class="stat" style="margin-bottom:.6rem"><b class="neg">${money(c.amount_cents)}</b><span>clawback · ${esc(c.name)} (${c.staff_id}) · order ${esc(c.order_id)} refunded after it was paid out</span></div>`).join("")}
+        ${decisions.length ? `<ul class="log">${decisions.map(e => `<li><span class="t">${e.t}</span><span>${e.html}</span></li>`).join("")}</ul>` : ""}
+      </div>
+    </div>`);
+}
+function statementView(){
+  const snap = S.snap, id = S.person, p = snap.people.find(x => x.staff_id === id);
+  const lines = snap.statements[id] || [];
+  const mine = snap.holds.filter(h => h.staff.includes(p.name));
+  const kinds = {commission: ["Commission", "info"], promo_bonus: ["Promo bonus", "warn"], clawback: ["Clawback", "bad"]};
+  const shown = lines.slice().sort((a, b) => Math.abs(b.amount_cents) - Math.abs(a.amount_cents)).slice(0, 8);
+  view(`Statement · ${p.name} (${id})`, "nyp_explain_statement", `
+    <div class="cols">
+      <div>
+        <table class="tbl"><thead><tr><th>Order</th><th>Kind</th><th>Note</th><th class="r">Amount</th></tr></thead><tbody>
+          ${shown.map(l => `<tr><td><b>${esc(l.order_id)}</b></td><td><span class="tag ${kinds[l.kind][1]}">${kinds[l.kind][0]}</span></td><td class="muted" style="font-size:1rem">${esc(l.note)}</td><td class="r ${l.amount_cents < 0 ? "neg" : ""}">${money(l.amount_cents)}</td></tr>`).join("")}
+        </tbody><tfoot><tr><td colspan="3">${lines.length} lines${lines.length > shown.length ? ` (largest ${shown.length} shown)` : ""}</td><td class="r">${money(p.total_cents)}</td></tr></tfoot></table>
+      </div>
+      <div>
+        <div class="row" style="margin-bottom:.6rem"><div class="stat"><b class="money">${money(p.sales_cents)}</b><span>sales before GST, earned this month</span></div><div class="stat"><b>${p.held_count}</b><span>orders held</span></div></div>
+        <ul class="hlist">${mine.slice(0, 6).map(h => `<li><span><b>${esc(h.order_id)}</b> ${esc(h.reason)}</span><span class="muted">${money(h.net_cents)}</span></li>`).join("") || "<li>No held orders</li>"}</ul>
+        <p class="muted" style="font-size:.95rem;margin:.5rem 0 0">Click the person again, or wait for the next reply, to go back.</p>
+      </div>
+    </div>`);
+}
+function renderStage(){
+  if(!S.snap || S.view === "idle") return idleView();
+  if(S.view === "statement" && S.person && S.snap.ready) return statementView();
+  if(S.view === "dispute") return disputeView();
+  if(S.view === "payout") return payoutView();
+  return bankView();
+}
+function render(changes = []){
+  renderRail(changes); renderStage(); renderPeople(changes); renderHeld(changes); renderCases(); renderLog(false);
+  if(changes.length) flash($("stage"));
+}
+
+/* ============ the chat ============ */
+let gotReply = false;
+const replyText = msg => {
+  // Prefer the documented content[].text; fall back to any string in the message that has a State line.
+  const parts = (msg && Array.isArray(msg.content) ? msg.content : []).filter(c => c && typeof c.text === "string").map(c => c.text);
+  if(parts.join("\n").includes("State:")) return parts.join("\n");
+  const found = []; const walk = v => { if(typeof v === "string") found.push(v); else if(v && typeof v === "object") Object.values(v).forEach(walk); };
+  walk(msg); return found.filter(s => s.includes("State:")).pop() || parts.join("\n") || found.join("\n");
+};
+/* Each reply's message.step_history lists the tool calls of that run with their arguments and
+   responses. That is the tools' own record of the close state, so it is read first; the State
+   line the agent writes is the fallback for replies that ran no tool. */
+const seenCalls = new Set();
+function toolSteps(msg){
+  const out = [];
+  for(const step of (msg && msg.step_history) || []){
+    const ds = Array.isArray(step.step_details) ? step.step_details : [step.step_details];
+    for(const d of ds){
+      if(!d) continue;
+      if(d.type === "tool_calls") for(const c of d.tool_calls || []) out.push({kind: "call", id: c.id, name: c.name, args: c.args || {}});
+      else if(d.type === "tool_response") out.push({kind: "resp", id: d.tool_call_id, name: d.name, content: d.content});
     }
-  };
-  setTimeout(function () {
-    var script = document.createElement("script");
-    script.src = window.wxOConfiguration.hostURL + "/wxochat/wxoLoader.js?embed=true";
-    script.addEventListener("load", function () { wxoLoader.init(); });
-    document.head.appendChild(script);
-  }, 0);
+  }
+  return out;
+}
+function toolState(msg){
+  const steps = toolSteps(msg), args = {};
+  steps.filter(s => s.kind === "call").forEach(s => { args[s.id] = s.args; });
+  const fresh = steps.filter(s => s.kind === "resp" && s.id && !seenCalls.has(s.id));
+  if(!fresh.length) return null;
+  const base = S.st || {approved_matches: {}, open_disputes: [], split_overrides: {}, payout: "not drafted"};
+  const T = JSON.parse(JSON.stringify(base));
+  const meta = {refusals: [], rulings: [], logEntry: null, ranTools: true};
+  let touched = !!S.st;
+  for(const r of fresh){
+    seenCalls.add(r.id);
+    let res = null; const raw = typeof r.content === "string" ? r.content : JSON.stringify(r.content);
+    try{ res = typeof r.content === "string" ? JSON.parse(r.content) : r.content; }catch(_){ res = null; }
+    meta.refusals.push(...refusalsIn(raw || ""));   // a PermissionError, however the platform wraps it
+    if(!res || typeof res !== "object" || Array.isArray(res) || res.error) continue;
+    const a = args[r.id] || {};
+    const used = res.inputs_used;
+    if(used){ T.approved_matches = {...used.approved_matches}; T.open_disputes = [...used.open_disputes]; T.split_overrides = {...used.split_overrides}; touched = true; }
+    switch(r.name){
+      case "nyp_load_month": touched = true; break;
+      case "nyp_match_payments": if(res.approved_so_far) T.approved_matches = {...res.approved_so_far}; touched = true; break;
+      case "nyp_prepare_payout": if(T.payout !== "approved") T.payout = "draft"; break;
+      case "nyp_raise_dispute":
+        if(a.approved_matches) T.approved_matches = {...a.approved_matches};
+        T.open_disputes = res.open_disputes ? [...res.open_disputes] : [...new Set([...(a.open_disputes || T.open_disputes), res.order_id])];
+        S.disputeInfo[res.order_id] = {by: res.raised_by, claim: res.claim};
+        touched = true; break;
+      case "nyp_record_ruling":
+        if(a.approved_matches) T.approved_matches = {...a.approved_matches};
+        T.open_disputes = res.open_disputes ? [...res.open_disputes] : T.open_disputes.filter(o => o !== res.order_id);
+        T.split_overrides = res.split_overrides ? {...res.split_overrides} : (res.split ? {...T.split_overrides, [res.order_id]: res.split} : T.split_overrides);
+        meta.rulings.push(res.order_id); touched = true; break;
+      case "nyp_approve_payout":
+        T.payout = res.decision === "approved" ? "approved" : "rejected"; meta.logEntry = res.log_entry || null; break;
+    }
+  }
+  return touched ? {st: T, meta} : (meta.refusals.length ? {st: null, meta} : null);
+}
+let replyTimer = null;
+function onReply(event){
+  gotReply = true;
+  const msg = event && event.message;
+  const text = replyText(msg);
+  clearTimeout(replyTimer);
+  replyTimer = setTimeout(() => handleReply(text, msg), 450);   // never lead the chat's own text
+}
+async function handleReply(text, msg){
+  if(!S.live) return;
+  const fromTools = msg ? toolState(msg) : null;
+  if(!fromTools && msg && toolSteps(msg).length && !stateLineOf(text)){
+    // Same run seen again (the confirm form arrives as a second message with the same history).
+    if(/form|flow/i.test(text) || toolSteps(msg).some(s => s.name === "nyp_match_payments")){ S.syncNote = "Waiting for the bank lines to be ticked in the form"; setSync("warn"); }
+    return;
+  }
+  if(fromTools){
+    S.syncNote = "";
+    if(fromTools.st) await applyState(fromTools.st, fromTools.meta);
+    else {
+      const rf = fromTools.meta.refusals;
+      rf.forEach(r => S.refusals[r.kind]++); narrate(S.st, S.snap, S.st, S.snap, [], fromTools.meta);
+      if(S.snap){ S.view = rf[0].kind === "ruling" ? "dispute" : "payout"; S.person = null; }
+      render([]);
+    }
+    return;
+  }
+  const refusals = refusalsIn(text);
+  const parsed = parseState(text, S.lastUser);
+  if(!parsed){
+    if(refusals.length){ refusals.forEach(r => S.refusals[r.kind]++); narrate(S.st, S.snap, S.st || {approved_matches: {}, open_disputes: [], split_overrides: {}, payout: S.payout}, S.snap, [], {refusals}); render([]); }
+    S.syncNote = "Last reply had no State line: showing last known"; setSync("warn"); return;
+  }
+  S.syncNote = parsed.unknownSplits.length ? `Ruling on ${parsed.unknownSplits.join(", ")} has no split in the State line: recorded split used` : "";
+  await applyState({approved_matches: parsed.approved_matches, open_disputes: parsed.open_disputes, split_overrides: parsed.split_overrides, payout: parsed.payout},
+    {refusals, rulings: parsed.rulings, unknownSplits: parsed.unknownSplits, logEntry: logEntryIn(text)});
+  if(S.syncNote) setSync("warn");
+}
+function onChatLoad(instance){
+  instance.on("pre:send", e => { try{ S.lastUser = e.message.message.content || ""; }catch(_){} });
+  instance.on("receive", onReply);
+  window.closerChat = instance;
+}
+
+/* ============ presenter controls ============ */
+function stepTo(n){
+  if(!demo) return;
+  n = Math.max(0, Math.min(demo.steps.length - 1, n)); S.live = false; S.stepIndex = n; $("dlive").classList.remove("sel");
+  resetBoard();
+  for(let k = 1; k <= n; k++){
+    const step = demo.steps[k];
+    const prevState = demo.steps[k - 1].state;
+    const refusals = step.events.filter(e => e.kind === "refused").map(e => ({kind: /owner/.test(e.text) ? "approval" : "ruling", who: e.who.match(/S\d{2}/)[0], text: e.text}));
+    const same = prevState && keyOf(prevState) === keyOf(step.state) && prevState.payout === step.state.payout;
+    if(same){ refusals.forEach(r => S.refusals[r.kind]++); narrate(S.st, S.snap, S.st, S.snap, [], {refusals}); S.view = refusals[0].kind === "ruling" ? "dispute" : "payout"; continue; }
+    const engineWas = engine; if(engineState !== "ready") engine = null;
+    applyStateSync(step.state, {refusals, rulings: Object.keys(step.state.split_overrides)});
+    engine = engineWas;
+  }
+  render(n ? ["step"] : []);
+  document.querySelectorAll("#dsteps button").forEach((b, i) => b.classList.toggle("sel", i === n));
+  try{ history.replaceState(null, "", "#step=" + n); }catch(_){}
+  setSync();
+}
+function applyStateSync(st, meta){   // the drawer replays the precomputed steps without waiting on the engine
+  const hit = demo.steps.find(s => s.state && keyOf(s.state) === keyOf(st) && s.state.payout === st.payout) || demo.steps.find(s => s.state && keyOf(s.state) === keyOf(st));
+  const snap = {...hit.snapshot, disputes: hit.disputes};
+  const old = S.st, oldSnap = S.snap, changes = [];
+  [...st.open_disputes, ...Object.keys(st.split_overrides)].forEach(o => S.watch.add(o));
+  if(!old) changes.push("load"); else {
+    if(keyOf({...old, open_disputes: [], split_overrides: {}}) !== keyOf({...st, open_disputes: [], split_overrides: {}})) changes.push("matches");
+    if(JSON.stringify(old.open_disputes) !== JSON.stringify(st.open_disputes) || JSON.stringify(old.split_overrides) !== JSON.stringify(st.split_overrides)) changes.push("dispute");
+    if(old.payout !== st.payout) changes.push("payout");
+  }
+  S.ruled = new Set([...(S.ruled || []), ...(meta.rulings || [])]);
+  const moved = oldSnap && oldSnap.ready && snap.ready && oldSnap.people.some((p, i) => p.total_cents !== snap.people[i].total_cents);
+  if(oldSnap && (!oldSnap.ready && snap.ready || moved)) S.prev = oldSnap;
+  S.deltaFresh = !!moved;
+  S.st = st; S.snap = snap; S.payout = st.payout; S.lastStateAt = now();
+  narrate(old, oldSnap, st, snap, changes, meta);
+  (meta.refusals || []).forEach(r => S.refusals[r.kind]++);
+  S.view = changes.includes("payout") ? "payout" : changes.includes("dispute") ? "dispute" : "bank";
+}
+function resetBoard(){
+  Object.assign(S, {st: null, snap: null, prev: null, payout: "not drafted", view: "idle", person: null, overrides: {}, watch: new Set(), events: [], refusals: {ruling: 0, approval: 0}, disputeInfo: {}, ruled: new Set(), lastStateAt: null, syncNote: ""});
+  $("k-total-v").dataset.v = ""; $("ribbon").classList.remove("on");
+}
+function toggleDrawer(force){ $("drawer").classList.toggle("on", force); }
+document.addEventListener("keydown", e => {
+  if(e.target.closest && e.target.closest("textarea,input")) { if(e.key === "Escape") toggleDrawer(false); return; }
+  if(e.key === "F2"){ toggleDrawer(); e.preventDefault(); return; }
+  if(e.key === "Escape"){ toggleDrawer(false); return; }
+  if($("drawer").classList.contains("on") && /^[0-9]$/.test(e.key)){ stepTo(+e.key); e.preventDefault(); }
+});
+$("dapply").onclick = () => {
+  const parsed = parseState("State:" + $("dstate").value.replace(/^\s*State:/i, ""), "");
+  if(!parsed){ S.syncNote = "Could not read that State line"; setSync("bad"); return; }
+  S.live = true; $("dlive").classList.add("sel");
+  applyState(parsed, {rulings: parsed.rulings, unknownSplits: parsed.unknownSplits});
+};
+$("dlive").onclick = () => { S.live = true; $("dlive").classList.add("sel"); document.querySelectorAll("#dsteps button").forEach(b => b.classList.remove("sel")); resetBoard(); render([]); setSync(); };
+
+document.addEventListener("click", e => {
+  const c = e.target.closest("button.copy");
+  if(c){ const t = c.previousElementSibling.textContent; if(navigator.clipboard) navigator.clipboard.writeText(t).then(() => { c.textContent = "Copied"; setTimeout(() => c.textContent = "Copy", 1200); }, () => {}); return; }
+  const p = e.target.closest("[data-person]");
+  if(p && S.snap && S.snap.ready){
+    if(S.view === "statement" && S.person === p.dataset.person){ S.view = S.returnView || "bank"; S.person = null; }
+    else { if(S.view !== "statement") S.returnView = S.view; S.view = "statement"; S.person = p.dataset.person; }
+    renderStage(); renderPeople([]);
+  }
+});
+
+/* ============ start ============ */
+fetch("engine/demo_states.json", {cache: "no-cache"}).then(r => r.json()).then(d => {
+  demo = d;
+  $("dsteps").innerHTML = d.steps.map((s, i) => `<button data-step="${i}"><b>${i}</b> ${esc(s.label)}</button>`).join("");
+  $("dsteps").onclick = e => { const b = e.target.closest("[data-step]"); if(b) stepTo(+b.dataset.step); };
+  const m = location.hash.match(/step=(\d+)/), rp = location.hash.match(/replay=(\d+)/);
+  if(m) stepTo(+m[1]); else render([]);
+  if(rp) rehearse(+rp[1]);
+}).catch(err => console.error("demo_states.json", err));
+render([]);
+startEngine();
+
+// From `orchestrate channels webchat embed --agent-name nyp_closer --env live`,
+// with the layout switched to "custom" so the chat renders inside the page,
+// and onLoad added so the dashboard can read each reply.
+window.wxOConfiguration = {
+  orchestrationID: "00b44f81c3ae411487c17d529f10457d_e1fa4625-3404-4a78-b267-c6474f83803e",
+  hostURL: "https://ca-tor.watson-orchestrate.cloud.ibm.com",
+  crn: "crn:v1:bluemix:public:watsonx-orchestrate:ca-tor:a/00b44f81c3ae411487c17d529f10457d:e1fa4625-3404-4a78-b267-c6474f83803e::",
+  deploymentPlatform: "ibmcloud",
+  chatOptions: {
+    agentId: "9aa0e418-3ad4-4bbe-9e9f-81948f379081",
+    agentEnvironmentId: "beb7f16f-294e-4152-a9eb-0da3e2331414",
+    onLoad: onChatLoad
+  },
+  layout: {form: "custom", showOrchestrateHeader: true, customElement: document.getElementById("chat-container")}
+};
+setTimeout(function () {
+  const script = document.createElement("script");
+  script.src = window.wxOConfiguration.hostURL + "/wxochat/wxoLoader.js?embed=true";
+  script.addEventListener("load", function () { wxoLoader.init(); });
+  script.addEventListener("error", function () { $("chatfail").classList.add("on"); });
+  document.head.appendChild(script);
+}, 0);
+setTimeout(() => { if(!document.querySelector("#chat-container *")) $("chatfail").classList.add("on"); }, 20000);
+/* Rehearsal: #replay=N feeds the first N demo steps through the same path as a chat reply
+   (State line parser, refusal check, in-browser engine), written the way the agent writes them. */
+function botReply(step){
+  const st = step.state;
+  const m = Object.entries(st.approved_matches).map(([k, v]) => `${k}:${v}`).join(", ") || "none";
+  const r = Object.entries(st.split_overrides).map(([o, sp]) => `${o} ${Object.entries(sp).map(([id, p]) => `${id} ${p}%`).join(" ")}`).join(", ") || "none";
+  const refused = step.events.filter(e => e.kind === "refused").map(e =>
+    /owner/.test(e.text) ? `'${e.who.match(/S\d{2}/)[0]}' is not authorised to approve or reject a payout. ${e.text}`
+                         : `'${e.who.match(/S\d{2}/)[0]}' is not authorised to record a ruling. ${e.text}`).join("\n");
+  return `${step.label}.\n${refused}\nState: matches ${m}, open disputes ${st.open_disputes.join(", ") || "none"}, rulings ${r}, payout ${st.payout}`;
+}
+async function rehearse(n){
+  while(engineState === "loading") await new Promise(ok => setTimeout(ok, 200));
+  for(let k = 1; k <= Math.min(n, demo.steps.length - 1); k++) await handleReply(botReply(demo.steps[k]));
+  document.body.dataset.rehearsed = String(n);
+}
+// For rehearsal from the browser console: closer.reply("...State: matches ...") acts like a chat reply.
+window.closer = {reply: t => { S.live = true; return handleReply(t); },
+  // Feed a raw webchat "receive" message, as captured from instance.on("receive").
+  replyMessage: m => { S.live = true; return handleReply(replyText(m), m); }, step: stepTo, rehearse, get state(){ return S.st; }, get snap(){ return S.snap; }};
 </script>
 </body>
 </html>

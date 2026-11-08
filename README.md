@@ -15,8 +15,25 @@ The demo shop is a fictional Singapore furniture showroom, Lim & Sons Living, wi
 synthetic month of data (September 2026). No real customer or personal data is used.
 
 **Try it:** the public demo page is in `docs/index.html`, served by GitHub Pages at
-https://qy-abc.github.io/SIM_Hackathon_TYD/. It embeds the live agent and lists the lines to
-paste, in order, with the expected result for each.
+https://qy-abc.github.io/new_demo_sim/. It is a one-screen live dashboard beside the embedded
+agent, built to be shown on a projector. Before anything is run, it lists the lines to paste in order.
+
+## Live dashboard
+
+After each agent reply, the page reads the tool calls in the reply's `step_history` and takes the
+close state from them: confirmed bank matches, open disputes, rulings and payout status. It then
+reruns the commission engine in the browser (Pyodide) on that state. Every figure on the board
+comes from the same functions the `nyp_` tools call (`closer/dashboard/snapshot.py`), never
+from the model's text. The agent's closing `State:` line is the fallback for a reply that runs no
+tool. Refused rulings and approvals are logged from the tools' own `PermissionError` text.
+
+- `python scripts/build_dashboard.py` rebuilds `docs/engine/engine.zip` (the engine plus the six
+  agent-visible data files, never `answer_key.json`) and `docs/engine/demo_states.json` (the board
+  at each demo step). Rerun it after changing `closer/` or `tools/_state.py`.
+  `tests/test_dashboard.py` fails while either file is stale.
+- **Presenter controls:** press `F2` to step through the demo by hand, or to paste a State line,
+  if the chat misbehaves on stage. `#step=N` in the URL opens at step N. `#replay=8` runs the
+  whole demo through the live parser and engine without the chat, for rehearsal.
 
 ## How it works
 
@@ -87,8 +104,8 @@ leaves it out of the package.
 | `flows/` | The tick-box form for confirming bank matches |
 | `closer/` | Data generator, loaders, commission rules engine, evaluation |
 | `config/` | `logins.example.json`; your own `logins.json` stays local |
-| `docs/` | The public demo page |
-| `scripts/` | `deploy.py` |
+| `docs/` | The public demo page and live dashboard; `docs/engine/` is built by `scripts/build_dashboard.py` |
+| `scripts/` | `deploy.py`, `build_dashboard.py` |
 | `tests/` | Unit tests for the rules and the tools |
 
 ## Limitations
