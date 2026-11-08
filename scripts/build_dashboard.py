@@ -71,7 +71,12 @@ def engine_zip(golden: Path = GOLDEN) -> bytes:
             info = zipfile.ZipInfo(name, date_time=FIXED_TIME)
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o644 << 16
-            zf.writestr(info, path.read_bytes())
+            data = path.read_bytes()
+            if not name.startswith("data/"):
+                # Git stores the sources with LF; a Windows checkout (core.autocrlf) rewrites them
+                # with CRLF. Pack LF so the zip is the same whichever checkout built it.
+                data = data.replace(b"\r\n", b"\n")
+            zf.writestr(info, data)
     return buf.getvalue()
 
 
